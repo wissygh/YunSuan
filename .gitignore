@@ -61,6 +61,8 @@ _xmsgs/
 generated/
 generated_cvt16/
 generated_cvt32/
+log/
+log_cvt64/
 ### Eclipse template
 *.pydevproject
 .metadata
