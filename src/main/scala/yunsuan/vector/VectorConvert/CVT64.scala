@@ -25,11 +25,11 @@ class CVT64(width: Int = 64) extends CVT(width){
   val outIsFp = opType.tail(1).head(1).asBool
   val hasSignIntNext = opType(0).asBool
 
-  val int1HSrcNext = VecInit((0 to 3).map(i => input1H(2*i))).asUInt
-  val float1HSrcNext = VecInit((1 to 3).map(i => input1H(2*i+1))).asUInt //exclude f8
+  val int1HSrcNext = input1H
+  val float1HSrcNext = input1H.head(3)//exclude f8
 
-  val int1HOutNext = VecInit((0 to 3).map(i => output1H(2 * i))).asUInt
-  val float1HOutNext = VecInit((1 to 3).map(i => output1H(2 * i + 1))).asUInt //exclude f8
+  val int1HOutNext = output1H
+  val float1HOutNext = output1H.head(3)//exclude f8
 
   val srcMap = (0 to 3).map(i => src((1 << i) * 8 - 1, 0))
   val intMap = srcMap.map(int => intExtend(int, hasSignIntNext && int.head(1).asBool))
@@ -159,13 +159,11 @@ class CVT64(width: Int = 64) extends CVT(width){
    */
 
   // for cycle1
-  val float1HOutReg = RegNext(float1HOutNext, 0.U(3.W))
+  val output1HReg = RegNext(output1H, 0.U(4.W))
   val float1HOut = Wire(UInt(3.W))
-  float1HOut := float1HOutReg
-
-  val int1HOutReg = RegNext(int1HOutNext, 0.U(4.W))
+  float1HOut := output1HReg.head(3)
   val int1HOut = Wire(UInt(4.W))
-  int1HOut := int1HOutReg
+  int1HOut := output1HReg
 
   val expNext = Wire(UInt(widthExpAdder.W))
   val expReg = RegNext(expNext, 0.U(widthExpAdder.W))
@@ -277,11 +275,7 @@ class CVT64(width: Int = 64) extends CVT(width){
    * cycle: 1
    */
   rounderMapInNext := Mux(isFpNarrowNext, fracSrc << (64 - f64.fracWidth), shiftLeft)
-  /**
-   * cycle0
-   * -------------------------------------------------------------------------------------------
-   * cycle1
-   */
+
   val rounderMap =
     fpParamMap.map(fp => Seq(
       rounderMapIn.head(fp.fracWidth),
@@ -614,11 +608,6 @@ class CVT64(width: Int = 64) extends CVT(width){
 
   fflagsNext := Cat(nv, dz, of, uf, nx)
 
-  /**
-   * cycle1
-   * -------------------------------------------------------------------------------------------
-   * cycle2
-   */
   io.result := result
   io.fflags := fflags
 }

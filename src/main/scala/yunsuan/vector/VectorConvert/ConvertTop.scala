@@ -17,13 +17,14 @@
 //
 //  val result = Output(Vec(vlen/xlen, UInt(xlen.W)))
 //  val fflags = Output(Vec(vlen/xlen, UInt((5 * (xlen / 16)).W)))
+//
 //  val inIsFp = opType.head(1)
 //  val outIsFp = opType.tail(1).head(1).asBool
 //
 //  val widen = opType(4, 3) // 0->single 1->widen 2->norrow => width of result
 //  val isSingle = !widen(1) & !widen(0)
 //  val isWiden = !widen(1) & widen(0)
-//  val isNorrow = widen(1) & !widen(0)
+//  val isNorrow = RegNext(RegNext(widen(1) & !widen(0)))
 //
 //  val input1H = Wire(UInt(8.W))
 //  input1H := chisel3.util.experimental.decode.decoder(
@@ -81,10 +82,8 @@
 //      BitPat("b0000_0010") //f8, don't exist
 //    )
 //  )
-//  dontTouch(input1H)
-//  dontTouch(output1H)
 //
-//  val outputWidth1H = VecInit((0 to 3).map(i => output1H(2 * i) | output1H(2 * i + 1))).asUInt
+//  val outputWidth1H = RegNext(RegNext(VecInit((0 to 3).map(i => output1H(2 * i) | output1H(2 * i + 1))).asUInt))
 //
 //  val in0 = Mux(isWiden,
 //    Mux(uop_idx(0), src(1).tail(32), src(0).tail(32)),

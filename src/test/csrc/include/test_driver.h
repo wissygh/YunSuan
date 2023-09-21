@@ -13,12 +13,12 @@
 // 改这里来适应fu
 #define pickFU   true
 #define pickFUop false
-#define pickSEW  false
+#define pickSEW  false  
 #define VERBOSE  false
 
 #define pickFuType     VFloatCvt
-#define pickFuOptype   VFCVT_XFV    
-#define pickSEWvalue   1   
+#define pickFuOptype   VFWCVT_FXUV    
+#define pickSEWvalue   0   
 
 #define FRS1 false
 #define FRS2 false
@@ -47,6 +47,8 @@ private:
   VecOutput dut_output;
   TestType test_type;
   bool issued;
+  VecOutput expect_output_buffer[3];
+  VecInput input_buffer[3];
 
   VGMFloatAdder vfa;
   VGMFloatFMA vff;

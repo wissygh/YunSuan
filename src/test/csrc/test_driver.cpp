@@ -445,15 +445,28 @@ uint64_t TestDriver::rand64() {
 }
 // dut io check, return fire or not
 bool TestDriver::assign_input_raising(VSimTop *dut_ptr) {
-  if (!issued) {
-    dut_ptr->io_in_valid = true;
-    if (dut_ptr->io_in_ready) {
-      issued = true;
-      stuck_count = 0;
+  if(input.fuType == VFloatCvt){
+    if (!issued) {
+      dut_ptr->io_in_valid = true;
+      if (dut_ptr->io_in_ready) {
+        // printf("always fire\n");
+        stuck_count = 0;
+      }
+    } else {
+      dut_ptr->io_in_valid = false;
     }
-  } else {
-    dut_ptr->io_in_valid = false;
+  } else{
+    if (!issued) {
+      dut_ptr->io_in_valid = true;
+      if (dut_ptr->io_in_ready) {
+        issued = true; 
+        stuck_count = 0;
+      }
+    } else {
+      dut_ptr->io_in_valid = false;
+    }
   }
+
   dut_ptr->io_in_bits_src_0_0 = input.src1[0];
   dut_ptr->io_in_bits_src_0_1 = input.src1[1];
   dut_ptr->io_in_bits_src_1_0 = input.src2[0];
@@ -481,8 +494,18 @@ bool TestDriver::assign_input_raising(VSimTop *dut_ptr) {
 }
 
 int TestDriver::diff_output_falling(VSimTop *dut_ptr) {
-  bool finish = dut_ptr->io_out_valid;
-  if (finish) {
+  if (input.fuType == VFloatCvt)
+  {
+    bool finish = dut_ptr->io_out_valid;
+    expect_output_buffer[2] = expect_output_buffer[1];
+    expect_output_buffer[1] = expect_output_buffer[0];
+    expect_output_buffer[0] = expect_output;
+    input_buffer[2] = input_buffer[1];
+    input_buffer[1] = input_buffer[0];
+    input_buffer[0] = input;
+    gen_next_test_case();
+
+    if (finish) {
     // printf("Finished\n");
     dut_output.result[0] = dut_ptr->io_out_bits_result_0;
     dut_output.result[1] = dut_ptr->io_out_bits_result_1;
@@ -490,35 +513,63 @@ int TestDriver::diff_output_falling(VSimTop *dut_ptr) {
     dut_output.fflags[1] = dut_ptr->io_out_bits_fflags_1;
     dut_output.vxsat = dut_ptr->io_out_bits_vxsat;
 
-    if (memcmp(&dut_output, &expect_output, sizeof(dut_output))) {
-      printf("Error, compare failed\n");
-      display();
-      return STATE_BADTRAP;
+    if (memcmp(&dut_output, &expect_output_buffer[2], sizeof(dut_output))) {
+        printf("Error, compare failed\n");
+        display();
+        return STATE_BADTRAP;
+      } 
+      return STATE_FINISH_OPERATION;
     } else {
-      gen_next_test_case();
+      stuck_count ++;
+      if (stuck_count >= stuck_limit) {
+        printf("DUT stucked. Not finished in %lu cycles\n", stuck_limit);
+        stuck_count = 0;
+        return STATE_BADTRAP;
+      }
+      return STATE_RUNNING;
     }
-    return STATE_FINISH_OPERATION;
   } else {
-    stuck_count ++;
-    if (stuck_count >= stuck_limit) {
-      printf("DUT stucked. Not finished in %lu cycles\n", stuck_limit);
-      stuck_count = 0;
-      return STATE_BADTRAP;
+    bool finish = dut_ptr->io_out_valid;
+    if (finish) {
+      // printf("Finished\n");
+      dut_output.result[0] = dut_ptr->io_out_bits_result_0;
+      dut_output.result[1] = dut_ptr->io_out_bits_result_1;
+      dut_output.fflags[0] = dut_ptr->io_out_bits_fflags_0;
+      dut_output.fflags[1] = dut_ptr->io_out_bits_fflags_1;
+      dut_output.vxsat = dut_ptr->io_out_bits_vxsat;
+
+      if (memcmp(&dut_output, &expect_output, sizeof(dut_output))) {
+        printf("Error, compare failed\n");
+        display();
+        return STATE_BADTRAP;
+      } else {
+        gen_next_test_case();
+      }
+      return STATE_FINISH_OPERATION;
+    } else {
+      stuck_count ++;
+      if (stuck_count >= stuck_limit) {
+        printf("DUT stucked. Not finished in %lu cycles\n", stuck_limit);
+        stuck_count = 0;
+        return STATE_BADTRAP;
+      }
+      return STATE_RUNNING;
     }
-    return STATE_RUNNING;
   }
+  
 }
 
 void TestDriver::display_ref_input() {
   printf("REF Input:\n");
-  printf("  src1 %016lx_%016lx src2 %016lx_%016lx src3 %016lx_%016lx src4 %016lx_%016lx\n", input.src1[1], input.src1[0], input.src2[1], input.src2[0], input.src3[1], input.src3[0], input.src4[1], input.src4[0]);
-  printf("  fuType %x fuOpType %x sew %x uop_idx %d src_widen %d widen %d is_frs1 %d rm %d\n", input.fuType, input.fuOpType, input.sew, input.uop_idx, input.src_widen, input.widen, input.is_frs1, input.rm);
-  printf("  vstart %d vl %d vlmul %x vm %d ta %d ma %d\n", input.vinfo.vstart, input.vinfo.vl, input.vinfo.vlmul, input.vinfo.vm, input.vinfo.ta, input.vinfo.ma);
+  printf("  src1 %016lx_%016lx src2 %016lx_%016lx src3 %016lx_%016lx src4 %016lx_%016lx\n", input_buffer[2].src1[1], input_buffer[2].src1[0], input_buffer[2].src2[1], input_buffer[2].src2[0], input_buffer[2].src3[1], input_buffer[2].src3[0], input_buffer[2].src4[1], input_buffer[2].src4[0]);
+  printf("  fuType %x fuOpType %x sew %x uop_idx %d src_widen %d widen %d is_frs1 %d rm %d\n", input_buffer[2].fuType, input_buffer[2].fuOpType, input_buffer[2].sew, input_buffer[2].uop_idx, input_buffer[2].src_widen, input_buffer[2].widen, input_buffer[2].is_frs1, input_buffer[2].rm);
+  printf("  vstart %d vl %d vlmul %x vm %d ta %d ma %d\n", input_buffer[2].vinfo.vstart, input_buffer[2].vinfo.vl, input_buffer[2].vinfo.vlmul, input_buffer[2].vinfo.vm, input_buffer[2].vinfo.ta, input_buffer[2].vinfo.ma);
 }
 
 void TestDriver::display_ref_output() {
   printf("Expected Output \n");
-  printf("  result  %016lx_%016lx fflags: %x_%x  vxsat: %lx\n", expect_output.result[1], expect_output.result[0], expect_output.fflags[1], expect_output.fflags[0], expect_output.vxsat);
+  printf("  result  %016lx_%016lx fflags: %x_%x  vxsat: %lx\n", expect_output_buffer[2].result[1], expect_output_buffer[2].result[0], expect_output_buffer[2].fflags[1], expect_output_buffer[2].fflags[0], expect_output_buffer[2].vxsat);
+  printf("------------------------------------------------------------------ \n");
 }
 
 void TestDriver::display_dut() {

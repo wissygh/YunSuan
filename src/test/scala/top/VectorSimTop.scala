@@ -88,31 +88,40 @@ class SimTop() extends VPUTestModule {
   val in = Reg(new VSTInputIO)
   val out = Reg(new VSTOutputIO)
 
-  io.in.ready := !busy
+//  io.in.ready := !busy
   io.out.bits := out
-
   has_issued := busy
+
+  //for vfcvt.
+  io.in.ready := true.B
   when (io.in.fire()) {
-    counter := 0.U
-    busy := true.B
     in := io.in.bits
-    latency := LookupTreeDefault(io.in.bits.fuType, 999.U, List(
-      VPUTestFuType.vfa -> VFA_latency.U,
-      VPUTestFuType.vff -> VFF_latency.U,
-      VPUTestFuType.vfd -> VFD_latency.U,
-      VPUTestFuType.via -> VIA_latency.U,
-      VPUTestFuType.vperm -> VPERM_latency.U,
-      VPUTestFuType.viaf -> VIAF_latency.U,
-      VPUTestFuType.vid -> VID_latency.U,
-      VPUTestFuType.vcvt -> VCVT_latency.U
-    )) // fuType --> latency, spec case for div
-    assert(!VPUTestFuType.unknown(io.in.bits.fuType))
+    busy := true.B
   }
-  when(io.out.fire()) {
-    busy := false.B
-  }
+  latency := 2.U
+
+//  when (io.in.fire()) {
+//    counter := 0.U
+//    busy := true.B
+//    in := io.in.bits
+//    latency := LookupTreeDefault(io.in.bits.fuType, 999.U, List(
+//      VPUTestFuType.vfa -> VFA_latency.U,
+//      VPUTestFuType.vff -> VFF_latency.U,
+//      VPUTestFuType.vfd -> VFD_latency.U,
+//      VPUTestFuType.via -> VIA_latency.U,
+//      VPUTestFuType.vperm -> VPERM_latency.U,
+//      VPUTestFuType.viaf -> VIAF_latency.U,
+//      VPUTestFuType.vid -> VID_latency.U,
+//      VPUTestFuType.vcvt -> VCVT_latency.U
+//    )) // fuType --> latency, spec case for div
+//    assert(!VPUTestFuType.unknown(io.in.bits.fuType))
+//  }
+//  when(io.out.fire()) {
+//    busy := false.B
+//  }
   when (busy) { counter := counter + 1.U }
   val finish_fixLatency = busy && (counter >= latency)
+
   val finish_uncertain = Wire(Bool())
   val is_uncertain = (in.fuType === VPUTestFuType.vfd) || (in.fuType === VPUTestFuType.vid)
 
